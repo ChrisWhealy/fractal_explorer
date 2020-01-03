@@ -26,9 +26,53 @@ const BAILOUT : f64 = 4.0;
 
 
 /***********************************************************************************************************************
+ * Draw either the Mandelbrot Set or a Julia Set
+ */
+fn draw_fractal(
+  ctx       : &CanvasRenderingContext2d
+, width     : u32     // Canvas width
+, height    : u32     // Canvas height
+, x_max     : f64     // Maximum extent of X axis
+, x_min     : f64     // Minimum extent of X axis
+, y_max     : f64     // Maximum extent of Y axis
+, y_min     : f64     // Minimum extent of Y axis
+, mandel_x  : f64     // X coord of mouse point on Mandelbrot set
+, mandel_y  : f64     // Y coord of mouse point on Mandelbrot set
+, max_iters : u32     // Stop after this many iterations
+, c_map     : JsValue // Selected colour map
+, f_type    : FractalType
+) -> Result<(), JsValue> {
+  let colour_map : Vec<Vec<u32>> = JsValue::into_serde(&c_map).unwrap();
+  let mut image_data = Vec::new();
+
+  // Here's where the heavy lifting happens...
+  for iy in 0..height {
+    for ix in 0..width {
+      // Translate canvas (x,y) pixel location to the (x,y) location in Mandelbrot Set's coordinate space
+      let x_coord = x_min + (x_max - x_min) * (ix as f64 / (width - 1) as f64);
+      let y_coord = y_min + (y_max - y_min) * (iy as f64 / (height - 1) as f64);
+
+      // Determine the colour of the current pixel
+      let this_colour = match f_type {
+        FractalType::Mandelbrot => &colour_map[mandel_iter(x_coord, y_coord, max_iters)]
+      , FractalType::Julia      => &colour_map[julia_iter(x_coord, y_coord, mandel_x, mandel_y, max_iters)]
+      };
+
+      // Might get into trouble here because this insertion order assumes we're running on a little-endian processor...
+      image_data.push(this_colour[0] as u8);  // Red
+      image_data.push(this_colour[1] as u8);  // Green
+      image_data.push(this_colour[2] as u8);  // Blue
+      image_data.push(this_colour[3] as u8);  // Alpha
+    }
+  }
+
+  let image_data = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&mut image_data), width, height)?;
+  ctx.put_image_data(&image_data, 0.0, 0.0)
+}
+
+/***********************************************************************************************************************
  * Return the iteration value of a particular pixel in the Mandelbrot set
- * This calculation has been optimized to bail out early if the current point is located within the main cardioid or the
- * period-2 bulb
+ * This calculation bails out early if the current point is located within the main cardioid or the period-2 bulb
  */
 fn mandel_iter(
   x_val     : f64
@@ -70,11 +114,11 @@ fn mandel_iter(
  * Return the iteration value of a particular pixel in the Julia set
  */
 fn julia_iter(
-  mut x_coord    : f64
-, mut y_coord    : f64
-, mandel_x_coord : f64
-, mandel_y_coord : f64
-, max_iters      : u32
+  mut x_coord : f64
+, mut y_coord : f64
+, mandel_x    : f64
+, mandel_y    : f64
+, max_iters   : u32
 ) -> usize {
   let mut iter_count : u32 = 0;
   let mut new_x      : f64 = 0.0;
@@ -82,8 +126,8 @@ fn julia_iter(
 
   // Determine if the value at the current location escapes to infinity or not.
   while (sum_of_squares(new_x, new_y) <= BAILOUT) && iter_count < max_iters {
-    new_x = diff_of_squares(x_coord, y_coord) + mandel_x_coord;
-    new_y = 2.0 * x_coord * y_coord + mandel_y_coord;
+    new_x   = diff_of_squares(x_coord, y_coord) + mandel_x;
+    new_y   = 2.0 * x_coord * y_coord + mandel_y;
     x_coord = new_x;
     y_coord = new_y;
     iter_count += 1;
@@ -98,7 +142,10 @@ fn julia_iter(
 fn  sum_of_squares(val1: f64, val2 : f64) -> f64 { val1 * val1 + val2 * val2 }
 fn diff_of_squares(val1: f64, val2 : f64) -> f64 { val1 * val1 - val2 * val2 }
 
-
+enum FractalType {
+  Mandelbrot
+, Julia
+}
 
 // *********************************************************************************************************************
 // *********************************************************************************************************************
@@ -125,29 +172,7 @@ pub fn draw_mandel(
 , max_iters : u32     // Stop after this many iterations
 , c_map     : JsValue // Selected colour map
 ) -> Result<(), JsValue> {
-  let colour_map : Vec<Vec<u32>> = JsValue::into_serde(&c_map).unwrap();
-  let mut m_set = Vec::new();
-
-  // Here's where the heavy lifting happens...
-  for iy in 0..height {
-    for ix in 0..width {
-      // Translate canvas (x,y) pixel location to the (x,y) location in Mandelbrot Set's coordinate space
-      let x_coord = x_min + (x_max - x_min) * (ix as f64 / (width - 1) as f64);
-      let y_coord = y_min + (y_max - y_min) * (iy as f64 / (height - 1) as f64);
-
-      // Determine the colour of the current pixel
-      let this_colour = &colour_map[mandel_iter(x_coord, y_coord, max_iters)];
-
-      // Might get into trouble here because this insertion order assumes we're running on a little-endian processor...
-      m_set.push(this_colour[0] as u8);  // Red
-      m_set.push(this_colour[1] as u8);  // Green
-      m_set.push(this_colour[2] as u8);  // Blue
-      m_set.push(this_colour[3] as u8);  // Alpha
-    }
-  }
-
-  let m_set = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&mut m_set), width, height)?;
-  ctx.put_image_data(&m_set, 0.0, 0.0)
+  draw_fractal(ctx, width, height, x_max, x_min, y_max, y_min, 0.0, 0.0, max_iters, c_map, FractalType::Mandelbrot)
 }
 
 /***********************************************************************************************************************
@@ -155,39 +180,17 @@ pub fn draw_mandel(
  */
 #[wasm_bindgen]
 pub fn draw_julia(
-  ctx            : &CanvasRenderingContext2d
-, width          : u32     // Canvas width
-, height         : u32     // Canvas height
-, x_max          : f64     // Maximum extent of X axis
-, x_min          : f64     // Minimum extent of X axis
-, y_max          : f64     // Maximum extent of Y axis
-, y_min          : f64     // Minimum extent of Y axis
-, mandel_x_coord : f64     // X coord of mouse point on Mandelbrot set
-, mandel_y_coord : f64     // Y coord of mouse point on Mandelbrot set
-, max_iters      : u32     // Stop after this many iterations
-, c_map          : JsValue // Selected colour map
+  ctx       : &CanvasRenderingContext2d
+, width     : u32     // Canvas width
+, height    : u32     // Canvas height
+, x_max     : f64     // Maximum extent of X axis
+, x_min     : f64     // Minimum extent of X axis
+, y_max     : f64     // Maximum extent of Y axis
+, y_min     : f64     // Minimum extent of Y axis
+, mandel_x  : f64     // X coord of mouse point on Mandelbrot set
+, mandel_y  : f64     // Y coord of mouse point on Mandelbrot set
+, max_iters : u32     // Stop after this many iterations
+, c_map     : JsValue // Selected colour map
 ) -> Result<(), JsValue> {
-  let colour_map : Vec<Vec<u32>> = JsValue::into_serde(&c_map).unwrap();
-  let mut j_set = Vec::new();
-
-  // Here's where the heavy lifting happens...
-  for iy in 0..height {
-    for ix in 0..width {
-      // Translate the canvas (x,y) pixel location to the (x,y) location of the Julia Set's coordinate space
-      let x_coord = x_min + (x_max - x_min) * (ix as f64 / (width - 1) as f64);
-      let y_coord = y_min + (y_max - y_min) * (iy as f64 / (height - 1) as f64);
-
-      // Determine the colour of the current pixel
-      let this_colour = &colour_map[julia_iter(x_coord, y_coord, mandel_x_coord, mandel_y_coord, max_iters)];
-
-      // Might get into trouble here because this insertion order assumes we're running on a little-endian processor...
-      j_set.push(this_colour[0] as u8);  // Red
-      j_set.push(this_colour[1] as u8);  // Green
-      j_set.push(this_colour[2] as u8);  // Blue
-      j_set.push(this_colour[3] as u8);  // Alpha
-    }
-  }
-
-  let j_set = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&mut j_set), width, height)?;
-  ctx.put_image_data(&j_set, 0.0, 0.0)
+  draw_fractal(ctx, width, height, x_max, x_min, y_max, y_min, mandel_x, mandel_y, max_iters, c_map, FractalType::Julia)
 }
