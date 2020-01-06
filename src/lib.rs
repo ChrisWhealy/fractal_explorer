@@ -29,21 +29,30 @@ const BAILOUT : f64 = 4.0;
  * Draw either the Mandelbrot Set or a Julia Set
  */
 fn draw_fractal(
-  ctx       : &CanvasRenderingContext2d
-, width     : u32     // Canvas width
-, height    : u32     // Canvas height
-, x_max     : f64     // Maximum extent of X axis
-, x_min     : f64     // Minimum extent of X axis
-, y_max     : f64     // Maximum extent of Y axis
-, y_min     : f64     // Minimum extent of Y axis
-, mandel_x  : f64     // X coord of mouse point on Mandelbrot set
-, mandel_y  : f64     // Y coord of mouse point on Mandelbrot set
-, max_iters : u32     // Stop after this many iterations
-, c_map     : JsValue // Selected colour map
-, f_type    : FractalType
+  ctx              : &CanvasRenderingContext2d
+, width            : u32     // Canvas width
+, height           : u32     // Canvas height
+, x_max            : f64     // Maximum extent of X axis
+, x_min            : f64     // Minimum extent of X axis
+, y_max            : f64     // Maximum extent of Y axis
+, y_min            : f64     // Minimum extent of Y axis
+, mandel_x         : f64     // X coord of mouse point on Mandelbrot set
+, mandel_y         : f64     // Y coord of mouse point on Mandelbrot set
+, max_iters        : u32     // Stop after this many iterations
+, c_map            : JsValue // Selected colour map
+, is_little_endian : bool    // Is the processor little endian?
+, f_type           : FractalType
 ) -> Result<(), JsValue> {
   let colour_map : Vec<Vec<u32>> = JsValue::into_serde(&c_map).unwrap();
   let mut image_data = Vec::new();
+
+  // If we're running on a big-endian processor, then the image_data insertion order must be reversed
+  let insertion_order = if is_little_endian {
+    vec!(0,1,2,3)
+  }
+  else {
+    vec!(3,2,1,0)
+  };
 
   // Here's where the heavy lifting happens...
   for iy in 0..height {
@@ -58,11 +67,11 @@ fn draw_fractal(
       , FractalType::Julia      => &colour_map[julia_iter(x_coord, y_coord, mandel_x, mandel_y, max_iters)]
       };
 
-      // Might get into trouble here because this insertion order assumes we're running on a little-endian processor...
-      image_data.push(this_colour[0] as u8);  // Red
-      image_data.push(this_colour[1] as u8);  // Green
-      image_data.push(this_colour[2] as u8);  // Blue
-      image_data.push(this_colour[3] as u8);  // Alpha
+      // Insert bytes into the image_data vector according to the processor's endianness
+      image_data.push(this_colour[insertion_order[0]] as u8);  // Red
+      image_data.push(this_colour[insertion_order[1]] as u8);  // Green
+      image_data.push(this_colour[insertion_order[2]] as u8);  // Blue
+      image_data.push(this_colour[insertion_order[3]] as u8);  // Alpha
     }
   }
 
@@ -162,17 +171,27 @@ enum FractalType {
  */
 #[wasm_bindgen]
 pub fn draw_mandel(
-  ctx       : &CanvasRenderingContext2d
-, width     : u32     // Canvas width
-, height    : u32     // Canvas height
-, x_max     : f64     // Maximum extent of X axis
-, x_min     : f64     // Minimum extent of X axis
-, y_max     : f64     // Maximum extent of Y axis
-, y_min     : f64     // Minimum extent of Y axis
-, max_iters : u32     // Stop after this many iterations
-, c_map     : JsValue // Selected colour map
+  ctx              : &CanvasRenderingContext2d
+, width            : u32     // Canvas width
+, height           : u32     // Canvas height
+, x_max            : f64     // Maximum extent of X axis
+, x_min            : f64     // Minimum extent of X axis
+, y_max            : f64     // Maximum extent of Y axis
+, y_min            : f64     // Minimum extent of Y axis
+, max_iters        : u32     // Stop after this many iterations
+, c_map            : JsValue // Selected colour map
+, is_little_endian : bool    // Is the processor little endian?
 ) -> Result<(), JsValue> {
-  draw_fractal(ctx, width, height, x_max, x_min, y_max, y_min, 0.0, 0.0, max_iters, c_map, FractalType::Mandelbrot)
+  draw_fractal(
+    ctx
+  , width, height
+  , x_max, x_min
+  , y_max, y_min
+  , 0.0, 0.0
+  , max_iters
+  , c_map
+  , is_little_endian
+  , FractalType::Mandelbrot)
 }
 
 /***********************************************************************************************************************
@@ -180,17 +199,27 @@ pub fn draw_mandel(
  */
 #[wasm_bindgen]
 pub fn draw_julia(
-  ctx       : &CanvasRenderingContext2d
-, width     : u32     // Canvas width
-, height    : u32     // Canvas height
-, x_max     : f64     // Maximum extent of X axis
-, x_min     : f64     // Minimum extent of X axis
-, y_max     : f64     // Maximum extent of Y axis
-, y_min     : f64     // Minimum extent of Y axis
-, mandel_x  : f64     // X coord of mouse point on Mandelbrot set
-, mandel_y  : f64     // Y coord of mouse point on Mandelbrot set
-, max_iters : u32     // Stop after this many iterations
-, c_map     : JsValue // Selected colour map
+  ctx              : &CanvasRenderingContext2d
+, width            : u32     // Canvas width
+, height           : u32     // Canvas height
+, x_max            : f64     // Maximum extent of X axis
+, x_min            : f64     // Minimum extent of X axis
+, y_max            : f64     // Maximum extent of Y axis
+, y_min            : f64     // Minimum extent of Y axis
+, mandel_x         : f64     // X coord of mouse point on Mandelbrot set
+, mandel_y         : f64     // Y coord of mouse point on Mandelbrot set
+, max_iters        : u32     // Stop after this many iterations
+, c_map            : JsValue // Selected colour map
+, is_little_endian : bool    // Is the processor little endian?
 ) -> Result<(), JsValue> {
-  draw_fractal(ctx, width, height, x_max, x_min, y_max, y_min, mandel_x, mandel_y, max_iters, c_map, FractalType::Julia)
+  draw_fractal(
+    ctx
+  , width, height
+  , x_max, x_min
+  , y_max, y_min
+  , mandel_x, mandel_y
+  , max_iters
+  , c_map
+  , is_little_endian
+  , FractalType::Julia)
 }
