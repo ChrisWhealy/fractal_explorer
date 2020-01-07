@@ -57,17 +57,18 @@ fn draw_fractal(
   // Here's where the heavy lifting happens...
   for iy in 0..height {
     for ix in 0..width {
-      // Translate canvas (x,y) pixel location to the (x,y) location in Mandelbrot Set's coordinate space
+      // Translate canvas (x,y) pixel location to the (x,y) location in fractal's coordinate space
       let x_coord = x_min + (x_max - x_min) * (ix as f64 / (width - 1) as f64);
       let y_coord = y_min + (y_max - y_min) * (iy as f64 / (height - 1) as f64);
 
       // Determine the colour of the current pixel
-      let this_colour = match f_type {
-        FractalType::Mandelbrot => &colour_map[mandel_iter(x_coord, y_coord, max_iters)]
-      , FractalType::Julia      => &colour_map[julia_iter(x_coord, y_coord, mandel_x, mandel_y, max_iters)]
-      };
+      let this_colour = &colour_map[
+        match f_type {
+          FractalType::Mandelbrot => mandel_iter(x_coord, y_coord, max_iters)
+        , FractalType::Julia      => julia_iter(x_coord, y_coord, mandel_x, mandel_y, max_iters)
+        }];
 
-      // Insert bytes into the image_data vector according to the processor's endianness
+      // Insert RGBA byte data into the image_data vector according to the processor's endianness
       image_data.push(this_colour[insertion_order[0]] as u8);  // Red
       image_data.push(this_colour[insertion_order[1]] as u8);  // Green
       image_data.push(this_colour[insertion_order[2]] as u8);  // Blue
@@ -88,46 +89,56 @@ fn mandel_iter(
 , y_val     : f64
 , max_iters : u32
 ) -> usize {
-  let temp : f64 = sum_of_squares(x_val - 0.25, y_val);
-  
-  // Does the current x_val lie within the main cardioid?
-  if temp * (temp + x_val - 0.25) <= (y_val * y_val) / 4.0 ||
-     // Or the period-2 bulb? 
-     sum_of_squares(x_val + 1.0, y_val) <= 0.0625 {
-    // Yup, so we can bail out early
-    return max_iters as usize;
-  }
-  else {
-    // Nope, so we have to run the full calculation
-    let mut iter_count : u32 = 0;
-    let mut x          : f64 = 0.0;
-    let mut y          : f64 = 0.0;
-    let mut x_sqr      : f64 = 0.0;
-    let mut y_sqr      : f64 = 0.0;
-
-    // Determine if the value at the current location escapes to infinity or not.
-    while iter_count < max_iters && (x_sqr + y_sqr <= BAILOUT) {
-      y     = y_val + (2.0 * x * y);
-      x     = x_val + (x_sqr - y_sqr);
-      x_sqr = x * x;
-      y_sqr = y * y;
-
-      iter_count += 1;
+ 
+  return 
+    // Can we bail out early?
+    if mandel_early_bailout(x_val, y_val) {
+      max_iters as usize
     }
+    else {
+      // Nope, so we have to run the full calculation
+      let mut iter_count : u32 = 0;
+      let mut x          : f64 = 0.0;
+      let mut y          : f64 = 0.0;
+      let mut x_sqr      : f64 = 0.0;
+      let mut y_sqr      : f64 = 0.0;
 
-    return iter_count as usize;
-  }
+      // Determine if the value at the current location escapes to infinity or not.
+      while iter_count < max_iters && (x_sqr + y_sqr <= BAILOUT) {
+        y     = y_val + (2.0 * x * y);
+        x     = x_val + (x_sqr - y_sqr);
+        x_sqr = x * x;
+        y_sqr = y * y;
+
+        iter_count += 1;
+      }
+
+      iter_count as usize
+    }
+}
+
+/***********************************************************************************************************************
+ * Calculate whether the current point lies within the Mandelbrot Set's main cardioid or the period-2 bulb
+ * If it does, then we can bail out early
+ */
+fn mandel_early_bailout(x : f64, y : f64) -> bool {
+  let temp : f64 = sum_of_squares(x - 0.25, y);
+  
+  // Does the current point lie within the main cardioid?
+  temp * (temp + x - 0.25) <= (y * y) / 4.0 ||
+  // Or the period-2 bulb? 
+  sum_of_squares(x + 1.0, y) <= 0.0625
 }
 
 /***********************************************************************************************************************
  * Return the iteration value of a particular pixel in the Julia set
  */
 fn julia_iter(
-  mut x_coord : f64
-, mut y_coord : f64
-, mandel_x    : f64
-, mandel_y    : f64
-, max_iters   : u32
+  mut x     : f64
+, mut y     : f64
+, mandel_x  : f64
+, mandel_y  : f64
+, max_iters : u32
 ) -> usize {
   let mut iter_count : u32 = 0;
   let mut new_x      : f64 = 0.0;
@@ -135,10 +146,10 @@ fn julia_iter(
 
   // Determine if the value at the current location escapes to infinity or not.
   while (sum_of_squares(new_x, new_y) <= BAILOUT) && iter_count < max_iters {
-    new_x   = diff_of_squares(x_coord, y_coord) + mandel_x;
-    new_y   = 2.0 * x_coord * y_coord + mandel_y;
-    x_coord = new_x;
-    y_coord = new_y;
+    new_x = mandel_x + diff_of_squares(x, y);
+    new_y = mandel_y + 2.0 * x * y;
+    x     = new_x;
+    y     = new_y;
     iter_count += 1;
   }
   
