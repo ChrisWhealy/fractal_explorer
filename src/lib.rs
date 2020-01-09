@@ -13,17 +13,9 @@ use web_sys::{CanvasRenderingContext2d, ImageData};
 
 const BAILOUT : f64 = 4.0;
 
-
-
 // *********************************************************************************************************************
+// PRIVATE API
 // *********************************************************************************************************************
-//
-//                                                 P R I V A T E   A P I
-//
-// *********************************************************************************************************************
-// *********************************************************************************************************************
-
-
 
 /***********************************************************************************************************************
  * Draw either the Mandelbrot Set or a Julia Set
@@ -65,7 +57,7 @@ fn draw_fractal(
       let this_colour = &colour_map[
         match f_type {
           FractalType::Mandelbrot => mandel_iter(x_coord, y_coord, max_iters)
-        , FractalType::Julia      => julia_iter(x_coord, y_coord, mandel_x, mandel_y, max_iters)
+        , FractalType::Julia      => escape_time_mj(mandel_x, mandel_y, x_coord, y_coord, max_iters)
         }];
 
       // Insert RGBA byte data into the image_data vector according to the processor's endianness
@@ -97,23 +89,7 @@ fn mandel_iter(
     }
     else {
       // Nope, so we have to run the full calculation
-      let mut iter_count : u32 = 0;
-      let mut x          : f64 = 0.0;
-      let mut y          : f64 = 0.0;
-      let mut x_sqr      : f64 = 0.0;
-      let mut y_sqr      : f64 = 0.0;
-
-      // Determine if the value at the current location escapes to infinity or not.
-      while iter_count < max_iters && (x_sqr + y_sqr <= BAILOUT) {
-        y     = y_val + (2.0 * x * y);
-        x     = x_val + (x_sqr - y_sqr);
-        x_sqr = x * x;
-        y_sqr = y * y;
-
-        iter_count += 1;
-      }
-
-      iter_count as usize
+      escape_time_mj(x_val, y_val, 0.0, 0.0, max_iters)
     }
 }
 
@@ -131,28 +107,27 @@ fn mandel_early_bailout(x : f64, y : f64) -> bool {
 }
 
 /***********************************************************************************************************************
- * Return the iteration value of a particular pixel in the Julia set
+ * Common escape time algorithm for calculating both the Mandelbrot and Julia Sets
  */
-fn julia_iter(
-  mut x     : f64
-, mut y     : f64
-, mandel_x  : f64
+fn escape_time_mj(
+  mandel_x  : f64
 , mandel_y  : f64
+, mut x     : f64
+, mut y     : f64
 , max_iters : u32
 ) -> usize {
   let mut iter_count : u32 = 0;
-  let mut new_x      : f64 = 0.0;
-  let mut new_y      : f64 = 0.0;
 
-  // Determine if the value at the current location escapes to infinity or not.
-  while (sum_of_squares(new_x, new_y) <= BAILOUT) && iter_count < max_iters {
-    new_x = mandel_x + diff_of_squares(x, y);
-    new_y = mandel_y + 2.0 * x * y;
+  // Count the number of iterations needed before the value at the current location either escapes to infinity or hits
+  // the iteration limit
+  while (sum_of_squares(x, y) <= BAILOUT) && iter_count < max_iters {
+    let new_x = mandel_x + diff_of_squares(x, y);
+    let new_y = mandel_y + (2.0 * x * y);
     x     = new_x;
     y     = new_y;
     iter_count += 1;
   }
-  
+      
   iter_count as usize
 }
 
@@ -168,14 +143,16 @@ enum FractalType {
 }
 
 // *********************************************************************************************************************
-// *********************************************************************************************************************
-//
-//                                                  P U B L I C    A P I
-//
-// *********************************************************************************************************************
+// PUBLIC API
 // *********************************************************************************************************************
 
-
+/***********************************************************************************************************************
+ * Dummy entry point
+ */
+#[wasm_bindgen(start)]
+pub fn main() -> Result<(), JsValue> {
+  Ok(())
+}
 
 /***********************************************************************************************************************
  * Draw a Mandelbrot Set
