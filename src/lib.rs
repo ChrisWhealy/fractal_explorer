@@ -35,15 +35,18 @@ fn draw_fractal(
 , is_little_endian : bool    // Is the processor little endian?
 , f_type           : FractalType
 ) -> Result<(), JsValue> {
+  // Deserialize the colour map
   let colour_map : Vec<Vec<u32>> = JsValue::into_serde(&c_map).unwrap();
+
   let mut image_data = Vec::new();
 
-  // If we're running on a big-endian processor, then the image_data insertion order must be reversed
+  // Colour map data is stored in the byte order RGA
+  // If we're running on a big-endian processor, the insertion order into the image_data vector must be reversed
   let insertion_order = if is_little_endian {
-    vec!(0,1,2,3)
+    vec!(0,1,2)
   }
   else {
-    vec!(3,2,1,0)
+    vec!(3,2,1)
   };
 
   // Here's where the heavy lifting happens...
@@ -64,7 +67,7 @@ fn draw_fractal(
       image_data.push(this_colour[insertion_order[0]] as u8);  // Red
       image_data.push(this_colour[insertion_order[1]] as u8);  // Green
       image_data.push(this_colour[insertion_order[2]] as u8);  // Blue
-      image_data.push(this_colour[insertion_order[3]] as u8);  // Alpha
+      image_data.push(0xff);                                   // Hard-coded alpha value
     }
   }
 
