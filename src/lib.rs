@@ -101,13 +101,12 @@ fn mandel_iter(
  * If it does, then we can bail out early
  */
 fn mandel_early_bailout(x : f64, y : f64) -> bool {
-  let temp : f64 = sum_of_squares(x - 0.25, y);
-  
-  // Does the current point lie within the main cardioid?
-  temp * (temp + x - 0.25) <= (y * y) / 4.0 ||
-  // Or the period-2 bulb? 
-  sum_of_squares(x + 1.0, y) <= 0.0625
+  is_in_main_cardioid(x, y, sum_of_squares(x - 0.25, y)) ||
+  is_in_period_2_bulb(x, y)
 }
+
+fn is_in_main_cardioid(x: f64, y: f64, temp: f64) -> bool { temp * (temp + x - 0.25) <= (y * y) / 4.0 }
+fn is_in_period_2_bulb(x: f64, y: f64)            -> bool { sum_of_squares(x + 1.0, y) <= 0.0625 }
 
 /***********************************************************************************************************************
  * Common escape time algorithm for calculating both the Mandelbrot and Julia Sets
