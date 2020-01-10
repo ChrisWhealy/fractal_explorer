@@ -28,8 +28,8 @@ fn draw_fractal(
 , x_min            : f64     // Minimum extent of X axis
 , y_max            : f64     // Maximum extent of Y axis
 , y_min            : f64     // Minimum extent of Y axis
-, mandel_x         : f64     // X coord of mouse point on Mandelbrot set
-, mandel_y         : f64     // Y coord of mouse point on Mandelbrot set
+, mandel_x         : f64     // X coord of mouse pointer on Mandelbrot set
+, mandel_y         : f64     // Y coord of mouse pointer on Mandelbrot set
 , max_iters        : u32     // Stop after this many iterations
 , c_map            : JsValue // Selected colour map
 , is_little_endian : bool    // Is the processor little endian?
@@ -40,7 +40,7 @@ fn draw_fractal(
 
   let mut image_data = Vec::new();
 
-  // Colour map data is stored in the byte order RGA
+  // Colour map data is stored in the byte order RGB
   // If we're running on a big-endian processor, the insertion order into the image_data vector must be reversed
   let insertion_order = if is_little_endian {
     vec!(0,1,2)
@@ -84,16 +84,14 @@ fn mandel_iter(
 , y_val     : f64
 , max_iters : u32
 ) -> usize {
- 
-  return 
-    // Can we bail out early?
-    if mandel_early_bailout(x_val, y_val) {
-      max_iters as usize
-    }
-    else {
-      // Nope, so we have to run the full calculation
-      escape_time_mj(x_val, y_val, 0.0, 0.0, max_iters)
-    }
+  // Can we bail out early?
+  if mandel_early_bailout(x_val, y_val) {
+    max_iters as usize
+  }
+  else {
+    // Nope, so we have to run the full calculation
+    escape_time_mj(x_val, y_val, 0.0, 0.0, max_iters)
+  }
 }
 
 /***********************************************************************************************************************
