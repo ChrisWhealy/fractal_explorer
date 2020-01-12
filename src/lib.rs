@@ -40,15 +40,6 @@ fn draw_fractal(
 
   let mut image_data = Vec::new();
 
-  // Colour map data is stored in the byte order RGB
-  // If we're running on a big-endian processor, the insertion order into the image_data vector must be reversed
-  let insertion_order = if is_little_endian {
-    vec!(0,1,2)
-  }
-  else {
-    vec!(3,2,1)
-  };
-
   // Here's where the heavy lifting happens...
   for iy in 0..height {
     for ix in 0..width {
@@ -64,10 +55,18 @@ fn draw_fractal(
         }];
 
       // Insert RGBA byte data into the image_data vector according to the processor's endianness
-      image_data.push(this_colour[insertion_order[0]] as u8);  // Red
-      image_data.push(this_colour[insertion_order[1]] as u8);  // Green
-      image_data.push(this_colour[insertion_order[2]] as u8);  // Blue
-      image_data.push(0xff);                                   // Hard-coded alpha value
+      if is_little_endian {
+        image_data.push(this_colour[0] as u8);  // Red
+        image_data.push(this_colour[1] as u8);  // Green
+        image_data.push(this_colour[2] as u8);  // Blue
+        image_data.push(0xff);                  // Hard-coded alpha value
+      }
+      else {
+        image_data.push(0xff);                  // Hard-coded alpha value
+        image_data.push(this_colour[2] as u8);  // Blue
+        image_data.push(this_colour[1] as u8);  // Green
+        image_data.push(this_colour[0] as u8);  // Red
+      }
     }
   }
 
