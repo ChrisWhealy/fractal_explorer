@@ -168,11 +168,18 @@ fn diff_of_squares(val1: f64, val2: f64) -> f64 {
 // PUBLIC API
 // *********************************************************************************************************************
 
+#[wasm_bindgen]
+extern "C" {
+  #[wasm_bindgen(js_namespace = console)]
+  fn log(s: String);
+}
+
 /***********************************************************************************************************************
  * Dummy entry point
  */
 #[wasm_bindgen(start)]
 pub fn main() -> Result<(), JsValue> {
+  log("WASM initialising...".to_string());
   Ok(())
 }
 
