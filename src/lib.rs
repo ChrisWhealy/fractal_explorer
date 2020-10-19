@@ -18,25 +18,59 @@ enum FractalType {
   Julia,
 }
 
-struct Dimensions {
+#[wasm_bindgen]
+pub struct Dimensions {
   width: u32,
   height: u32,
 }
 
-struct Range {
+#[wasm_bindgen]
+pub struct Range {
   min: f64,
   max: f64,
 }
 
-struct AxesRanges {
+#[wasm_bindgen]
+pub struct AxesRanges {
   x_range: Range,
   y_range: Range,
 }
 
-struct Point {
+#[wasm_bindgen]
+pub struct Point {
   x: f64,
   y: f64,
 }
+
+#[wasm_bindgen]
+pub fn gen_struct_dimensions(width: u32, height: u32) -> Dimensions {
+  Dimensions { width, height }
+}
+
+#[wasm_bindgen]
+pub fn gen_struct_range(max: f64, min: f64) -> Range {
+  Range { max, min }
+}
+
+#[wasm_bindgen]
+pub fn gen_struct_axes_ranges(x_max: f64, x_min: f64, y_max: f64, y_min: f64) -> AxesRanges {
+  AxesRanges {
+    x_range: Range {
+      max: x_max,
+      min: x_min,
+    },
+    y_range: Range {
+      max: y_max,
+      min: y_min,
+    },
+  }
+}
+
+#[wasm_bindgen]
+pub fn gen_struct_point(x: f64, y: f64) -> Point {
+  Point { x, y }
+}
+
 // *********************************************************************************************************************
 // PRIVATE API
 // *********************************************************************************************************************
@@ -189,29 +223,16 @@ pub fn main() -> Result<(), JsValue> {
 #[wasm_bindgen]
 pub fn draw_mandel(
   ctx: &CanvasRenderingContext2d,
-  width: u32,             // Canvas width
-  height: u32,            // Canvas height
-  x_max: f64,             // Maximum extent of X axis
-  x_min: f64,             // Minimum extent of X axis
-  y_max: f64,             // Maximum extent of Y axis
-  y_min: f64,             // Minimum extent of Y axis
-  max_iters: u32,         // Stop after this many iterations
-  c_map: JsValue,         // Selected colour map
-  is_little_endian: bool, // Is the processor little endian?
+  canvas: Dimensions,      // Canvas dimensions
+  axes_ranges: AxesRanges, // Extent of axes ranges
+  max_iters: u32,          // Stop after this many iterations
+  c_map: JsValue,          // Selected colour map
+  is_little_endian: bool,  // Is the processor little endian?
 ) -> Result<(), JsValue> {
   draw_fractal(
     ctx,
-    Dimensions { width, height },
-    AxesRanges {
-      x_range: Range {
-        max: x_max,
-        min: x_min,
-      },
-      y_range: Range {
-        max: y_max,
-        min: y_min,
-      },
-    },
+    canvas,
+    axes_ranges,
     Point { x: 0.0, y: 0.0 },
     max_iters,
     c_map,
@@ -226,35 +247,18 @@ pub fn draw_mandel(
 #[wasm_bindgen]
 pub fn draw_julia(
   ctx: &CanvasRenderingContext2d,
-  width: u32,             // Canvas width
-  height: u32,            // Canvas height
-  x_max: f64,             // Maximum extent of X axis
-  x_min: f64,             // Minimum extent of X axis
-  y_max: f64,             // Maximum extent of Y axis
-  y_min: f64,             // Minimum extent of Y axis
-  mandel_x: f64,          // X coord of mouse point on Mandelbrot set
-  mandel_y: f64,          // Y coord of mouse point on Mandelbrot set
-  max_iters: u32,         // Stop after this many iterations
-  c_map: JsValue,         // Selected colour map
-  is_little_endian: bool, // Is the processor little endian?
+  canvas: Dimensions,      // Canvas dimensions
+  axes_ranges: AxesRanges, // Extent of axes ranges
+  mouse_loc: Point,        // Mouse pointer coords on Mandelbrot set
+  max_iters: u32,          // Stop after this many iterations
+  c_map: JsValue,          // Selected colour map
+  is_little_endian: bool,  // Is the processor little endian?
 ) -> Result<(), JsValue> {
   draw_fractal(
     ctx,
-    Dimensions { width, height },
-    AxesRanges {
-      x_range: Range {
-        max: x_max,
-        min: x_min,
-      },
-      y_range: Range {
-        max: y_max,
-        min: y_min,
-      },
-    },
-    Point {
-      x: mandel_x,
-      y: mandel_y,
-    },
+    canvas,
+    axes_ranges,
+    mouse_loc,
     max_iters,
     c_map,
     is_little_endian,
